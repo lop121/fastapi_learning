@@ -1,52 +1,40 @@
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI
+
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 app = FastAPI()
 
-movies = [
-    {
-        "id": 1,
-        "title": "Третий лишний",
-        "year": 2008,
-    },
-    {
-        "id": 2,
-        "title": "Marvel-Final",
-        "year": 2018,
-    },
-]
+data = {
+    "email": "test@test.ru",
+    "bio": "Босс",
+    "age": 18,
+}
 
 
-@app.get("/movies", tags=["Фильмы"])
-def read_movies():
-    return movies
+class UserSchema(BaseModel):
+    email: EmailStr
+    bio: str = Field(max_length=1000)
+
+    model_config = ConfigDict(extra="forbid")
 
 
-@app.get("/movies/{movie_id}", tags=["Фильмы"])
-def get_movie(movie_id: int):
-    for movie in movies:
-        if movie["id"] == movie_id:
-            return movie
-    raise HTTPException(status_code=404, detail="Книга не найдена")
+users = []
 
 
-class NewMovie(BaseModel):
-    title: str
-    year: int
+@app.post("/users")
+def add_user(user: UserSchema):
+    users.append(user)
+    return {"msg": "Юзер добавлен"}
 
 
-@app.post("/movies")
-def create_movie(new_movie: NewMovie):
-    movies.append(
-        {
-            "id": len(movies) + 1,
-            "title": new_movie.title,
-            "year": new_movie.year,
-        }
-    )
-    return {"success": True}
+@app.get("/users")
+def get_users() -> list[UserSchema]:
+    return users
 
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", reload=True)
+class UserAgeSchema(UserSchema):
+    age: int = Field(ge=0, le=100)
+
+
+# user = UserAgeSchema(**data)
+# print(repr(user))
