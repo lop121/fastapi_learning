@@ -1,40 +1,68 @@
-from fastapi import FastAPI
+from typing import Annotated
 
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from fastapi import FastAPI, Depends
 
 app = FastAPI()
 
-data = {
-    "email": "test@test.ru",
-    "bio": "Босс",
-    "age": 18,
-}
+engine = create_async_engine("sqlite+aiosqlite:///books.db")
+
+new_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
-class UserSchema(BaseModel):
-    email: EmailStr
-    bio: str = Field(max_length=1000)
-
-    model_config = ConfigDict(extra="forbid")
+async def get_session():
+    async with new_session() as session:
+        yield session
 
 
-users = []
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-@app.post("/users")
-def add_user(user: UserSchema):
-    users.append(user)
-    return {"msg": "Юзер добавлен"}
+class Base(DeclarativeBase):
+    pass
 
 
-@app.get("/users")
-def get_users() -> list[UserSchema]:
-    return users
+class BookModel(Base):
+    __tablename__ = "books"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str]
+    author: Mapped[str]
 
 
-class UserAgeSchema(UserSchema):
-    age: int = Field(ge=0, le=100)
+@app.post("/setup_database")
+async def setup_database():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    return {"success": True}
 
 
-# user = UserAgeSchema(**data)
-# print(repr(user))
+class BookAddSchema(BaseModel):
+    title: str
+    author: str
+
+
+class BookSchema(BookAddSchema):
+    id: int
+
+
+@app.post("/books")
+async def add_book(data: BookAddSchema, session: SessionDep):
+    new_book = BookModel(
+        title=data.title,
+        author=data.author,
+    )
+    session.add(new_book)
+    await session.commit()
+    return {"success": True}
+
+
+@app.get("/books")
+async def get_books(session: SessionDep):
+    query = select(BookModel)
+    result = await session.execute(query)
+    return result.scalars().all()
