@@ -1,31 +1,22 @@
-from fastapi import FastAPI, HTTPException, Response, Depends
-from authx import AuthX, AuthXConfig
-from pydantic import BaseModel
+from fastapi import FastAPI, BackgroundTasks
+import time
+import asyncio
 
 app = FastAPI()
 
-config = AuthXConfig()
-config.JWT_SECRET_KEY = "SECRET_KEY"
-config.JWT_ACCESS_COOKIE_NAME = "my_access_token"
-config.JWT_TOKEN_LOCATION = ["cookies"]
 
-security = AuthX(config=config)
+def sync_task():
+    time.sleep(3)
+    print("Отправлен email")
 
 
-class UserLoginSchema(BaseModel):
-    username: str
-    password: str
+async def async_task():
+    await asyncio.sleep(3)
+    print("Сделан запрос в сторонний API")
 
 
-@app.post("/login")
-def login(credentials: UserLoginSchema, response: Response):
-    if credentials.username == "test" and credentials.password == "test":
-        token = security.create_access_token(uid="12345")
-        response.set_cookie(config.JWT_ACCESS_COOKIE_NAME, token)
-        return {"access_token": token}
-    raise HTTPException(status_code=401, detail="Incorrect username or password")
-
-
-@app.get("/protected", dependencies=[Depends(security.access_token_required)])
-def protected():
-    return {"data": "secret_data"}
+@app.post("/")
+async def some_route(bg_tasks: BackgroundTasks):
+    # asyncio.create_task(async_task())
+    bg_tasks.add_task(sync_task)
+    return {"access": True}
