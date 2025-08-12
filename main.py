@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import StreamingResponse, FileResponse
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -24,6 +25,30 @@ async def upload_file(uploaded_files: list[UploadFile]):
 @app.get("/files/{filename}")
 async def get_file(filename: str):
     return FileResponse(filename)
+
+
+data = [
+    {
+        "name": "Anton",
+        "age": 20,
+    }
+]
+
+
+@app.get("/testfile")
+async def get_testfile():
+    return data
+
+
+class TestSchema(BaseModel):
+    name: str
+    age: int
+
+
+@app.post("/testfile")
+async def add_testfile(testfile: TestSchema):
+    data.append({"name": testfile.name, "age": testfile.age})
+    return {"success": True}
 
 
 def iterfile(filename):
