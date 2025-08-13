@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список фильмов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 50%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🎬 Мои фильмы</h1>
+
+<button onclick="loadMovies()">Загрузить фильмы</button>
+
+<table id="moviesTable" style="display: none;">
+    <thead>
+    <tr>
+        <th>Название</th>
+        <th>Год</th>
+    </tr>
+    </thead>
+    <tbody id="moviesBody"></tbody>
+</table>
+
+<script>
+    async function loadMovies() {
+        try {
+            const response = await fetch("http://127.0.0.1:8000/movies");
+            if (!response.ok) {
+                throw new Error('Ошибка при загрузке фильмов');
+            }
+            const movies = await response.json();
+
+            const table = document.getElementById("moviesTable");
+            const tbody = document.getElementById("moviesBody");
+            tbody.innerHTML = ""; // очищаем предыдущие данные
+
+            movies.forEach(movie => {
+                const row = document.createElement("tr");
+                const nameCell = document.createElement("td");
+                nameCell.textContent = movie.name;
+                const yearCell = document.createElement("td");
+                yearCell.textContent = movie.year;
+                row.appendChild(nameCell);
+                row.appendChild(yearCell);
+                tbody.appendChild(row);
+            });
+
+            table.style.display = movies.length ? "table" : "none";
+        } catch (error) {
+            alert("Произошла ошибка: " + error.message);
+            console.error(error);
+        }
+    }
+</script>
+
+</body>
+</html>
